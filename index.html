@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personality Analyzer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .result-card {
+            transform: translateY(20px);
+            opacity: 0;
+            transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+        }
+        .result-card.visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        /* Styles for the active and inactive tabs */
+        .tab-btn.active {
+            background-color: white;
+            color: #4f46e5; /* indigo-600 */
+        }
+        .tab-btn:not(.active) {
+            background-color: transparent;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md mx-auto bg-white/20 backdrop-blur-lg rounded-2xl shadow-2xl p-8 text-white">
+        
+        <!-- App Title -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-bold tracking-tight">Personality Analyzer</h1>
+            <p class="text-indigo-200 mt-2">Discover your traits by Zodiac or Blood Type.</p>
+        </div>
+
+        <!-- Analysis Type Toggle -->
+        <div class="flex justify-center bg-white/20 rounded-lg p-1 mb-6">
+            <button id="zodiacTab" class="tab-btn active w-1/2 py-2 rounded-md font-semibold transition-colors duration-300">Zodiac</button>
+            <button id="bloodTypeTab" class="tab-btn w-1/2 py-2 rounded-md font-semibold transition-colors duration-300">Blood Type</button>
+        </div>
+
+        <!-- Input Section -->
+        <div class="space-y-4">
+            <!-- Birthday Input -->
+            <div id="birthdayInputContainer">
+                <label for="birthday" class="block text-sm font-medium mb-2">Enter your birthday:</label>
+                <input type="date" id="birthday" class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 text-white placeholder-indigo-200" required>
+            </div>
+            <!-- Blood Type Input -->
+            <div id="bloodTypeInputContainer" class="hidden">
+                 <label for="bloodType" class="block text-sm font-medium mb-2">Select your blood type:</label>
+                 <select id="bloodType" class="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 text-white">
+                    <option value="" class="text-black">-- Select --</option>
+                    <option value="A" class="text-black">A</option>
+                    <option value="B" class="text-black">B</option>
+                    <option value="AB" class="text-black">AB</option>
+                    <option value="O" class="text-black">O</option>
+                 </select>
+            </div>
+            <button id="analyzeBtn" class="w-full bg-white text-indigo-600 font-bold py-3 px-4 rounded-lg shadow-lg hover:bg-indigo-100 transition-all duration-300 ease-in-out transform hover:scale-105">
+                Analyze My Personality
+            </button>
+        </div>
+
+        <!-- Result Section -->
+        <div id="result" class="mt-8 hidden">
+             <div id="resultCard" class="result-card bg-white/10 p-6 rounded-xl">
+                <div class="text-center">
+                    <h2 id="result-title" class="text-4xl font-bold"></h2>
+                    <p id="result-subtitle" class="text-indigo-200 text-sm"></p>
+                </div>
+                <div class="mt-6">
+                    <h3 class="text-lg font-semibold mb-2 text-center">Personality Traits:</h3>
+                    <p id="personality" class="text-indigo-100 text-center"></p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Message -->
+        <div id="error-message" class="text-center text-red-300 mt-4 font-medium hidden"></div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const zodiacTab = document.getElementById('zodiacTab');
+        const bloodTypeTab = document.getElementById('bloodTypeTab');
+        const birthdayInputContainer = document.getElementById('birthdayInputContainer');
+        const bloodTypeInputContainer = document.getElementById('bloodTypeInputContainer');
+        const birthdayInput = document.getElementById('birthday');
+        const bloodTypeSelect = document.getElementById('bloodType');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultDiv = document.getElementById('result');
+        const resultCard = document.getElementById('resultCard');
+        const resultTitleEl = document.getElementById('result-title');
+        const resultSubtitleEl = document.getElementById('result-subtitle');
+        const personalityEl = document.getElementById('personality');
+        const errorMessage = document.getElementById('error-message');
+
+        let currentMode = 'zodiac'; // 'zodiac' or 'bloodType'
+
+        // Data
+        const zodiacData = {
+            "Capricorn": { dates: "Dec 22 - Jan 19", personality: "Ambitious, disciplined, and practical. Capricorns are masters of self-control and have a strong sense of responsibility." },
+            "Aquarius": { dates: "Jan 20 - Feb 18", personality: "Independent, original, and progressive. Aquarians are deep thinkers who love helping others and fighting for important causes." },
+            "Pisces": { dates: "Feb 19 - Mar 20", personality: "Compassionate, artistic, and intuitive. Pisces are very friendly and selfless, often finding themselves in the company of very different people." },
+            "Aries": { dates: "Mar 21 - Apr 19", personality: "Courageous, determined, and confident. Aries is a pioneer, always ready for a challenge and natural-born leaders." },
+            "Taurus": { dates: "Apr 20 - May 20", personality: "Reliable, patient, and practical. Taureans are well-grounded, value security, and have a strong love for beauty." },
+            "Gemini": { dates: "May 21 - Jun 20", personality: "Gentle, affectionate, and curious. Geminis are adaptable, quick learners, and always ready for fun and intellectual conversation." },
+            "Cancer": { dates: "Jun 21 - Jul 22", personality: "Tenacious, imaginative, and loyal. Cancers are highly intuitive, sentimental, and deeply connected to their family and home." },
+            "Leo": { dates: "Jul 23 - Aug 22", personality: "Creative, passionate, and generous. Leos are natural leaders who are dramatic, confident, and able to achieve anything they commit to." },
+            "Virgo": { dates: "Aug 23 - Sep 22", personality: "Loyal, analytical, and hardworking. Virgos pay great attention to detail and their methodical approach ensures nothing is left to chance." },
+            "Libra": { dates: "Sep 23 - Oct 22", personality: "Cooperative, diplomatic, and gracious. Libras are fair-minded, social, and fascinated by balance and symmetry." },
+            "Scorpio": { dates: "Oct 23 - Nov 21", personality: "Resourceful, brave, and passionate. Scorpios are assertive and decisive people, true friends, and determined leaders." },
+            "Sagittarius": { dates: "Nov 22 - Dec 21", personality: "Generous, idealistic, and has a great sense of humor. Sagittarians are extroverted optimists who love change." }
+        };
+
+        const bloodTypeData = {
+            "A": { subtitle: "The Farmer", personality: "Earnest, creative, sensible, and patient. People with blood type A are known for being responsible and reserved, but can also be stubborn and tense." },
+            "B": { subtitle: "The Hunter", personality: "Passionate, active, creative, and strong. Those with blood type B are cheerful and wild, but can sometimes be seen as irresponsible or selfish." },
+            "AB": { subtitle: "The Humanist", personality: "Cool, controlled, rational, and adaptable. Type AB individuals are sociable and popular, but can also be critical, indecisive, and forgetful." },
+            "O": { subtitle: "The Warrior", personality: "Confident, self-determined, ambitious, and intuitive. People with blood type O are agreeable and sociable leaders, but can also be vain and arrogant." }
+        };
+
+        /**
+         * Switches the analysis mode between Zodiac and Blood Type.
+         * @param {string} mode - The mode to switch to ('zodiac' or 'bloodType').
+         */
+        function switchMode(mode) {
+            currentMode = mode;
+            // Hide results and errors
+            resultDiv.classList.add('hidden');
+            resultCard.classList.remove('visible');
+            errorMessage.classList.add('hidden');
+
+            if (mode === 'zodiac') {
+                zodiacTab.classList.add('active');
+                bloodTypeTab.classList.remove('active');
+                birthdayInputContainer.classList.remove('hidden');
+                bloodTypeInputContainer.classList.add('hidden');
+            } else {
+                bloodTypeTab.classList.add('active');
+                zodiacTab.classList.remove('active');
+                bloodTypeInputContainer.classList.remove('hidden');
+                birthdayInputContainer.classList.add('hidden');
+            }
+        }
+
+        // Tab Event Listeners
+        zodiacTab.addEventListener('click', () => switchMode('zodiac'));
+        bloodTypeTab.addEventListener('click', () => switchMode('bloodType'));
+
+        /**
+         * Determines the Zodiac sign based on the provided date.
+         */
+        function getZodiacSign(day, month) {
+            if ((month == 1 && day >= 20) || (month == 2 && day <= 18)) return "Aquarius";
+            if ((month == 2 && day >= 19) || (month == 3 && day <= 20)) return "Pisces";
+            if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) return "Aries";
+            if ((month == 4 && day >= 20) || (month == 5 && day <= 20)) return "Taurus";
+            if ((month == 5 && day >= 21) || (month == 6 && day <= 20)) return "Gemini";
+            if ((month == 6 && day >= 21) || (month == 7 && day <= 22)) return "Cancer";
+            if ((month == 7 && day >= 23) || (month == 8 && day <= 22)) return "Leo";
+            if ((month == 8 && day >= 23) || (month == 9 && day <= 22)) return "Virgo";
+            if ((month == 9 && day >= 23) || (month == 10 && day <= 22)) return "Libra";
+            if ((month == 10 && day >= 23) || (month == 11 && day <= 21)) return "Scorpio";
+            if ((month == 11 && day >= 22) || (month == 12 && day <= 21)) return "Sagittarius";
+            return "Capricorn";
+        }
+
+        // Main Analyze Button Event Listener
+        analyzeBtn.addEventListener('click', () => {
+            // Hide previous results and errors
+            resultDiv.classList.add('hidden');
+            resultCard.classList.remove('visible');
+            errorMessage.classList.add('hidden');
+
+            let data;
+            let title;
+            let subtitle;
+
+            if (currentMode === 'zodiac') {
+                const birthdayValue = birthdayInput.value;
+                if (!birthdayValue) {
+                    errorMessage.textContent = 'Please select your birthday first.';
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+                const date = new Date(birthdayValue);
+                const month = date.getUTCMonth() + 1;
+                const day = date.getUTCDate();
+                title = getZodiacSign(day, month);
+                data = zodiacData[title];
+                subtitle = data.dates;
+            } else { // bloodType mode
+                title = bloodTypeSelect.value;
+                if (!title) {
+                    errorMessage.textContent = 'Please select your blood type first.';
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+                data = bloodTypeData[title];
+                subtitle = data.subtitle;
+            }
+
+            if (data) {
+                resultTitleEl.textContent = title;
+                resultSubtitleEl.textContent = subtitle;
+                personalityEl.textContent = data.personality;
+
+                resultDiv.classList.remove('hidden');
+                setTimeout(() => {
+                    resultCard.classList.add('visible');
+                }, 10);
+            }
+        });
+        
+        // Set max date for birthday input to today
+        const today = new Date().toISOString().split('T')[0];
+        birthdayInput.setAttribute('max', today);
+
+    </script>
+</body>
+</html>
